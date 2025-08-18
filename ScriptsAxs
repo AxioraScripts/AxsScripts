@@ -1,0 +1,591 @@
+local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
+
+-- Game Detection Configuration
+local SUPPORTED_GAMES = {
+    [73956553001240] = "Volleyball Legends" -- Add more game IDs as needed
+}
+
+-- Game Detection Function
+local function detectGame()
+    local currentGameId = game.PlaceId
+    local gameName = SUPPORTED_GAMES[currentGameId]
+    
+    if gameName then
+        -- Game is supported
+        notif:Notification("AXS","Game is Supported\nLoading  Script","Code","Cartoon",10)
+        print("Supported Game Detected: " .. gameName .. " (ID: " .. currentGameId .. ")")
+        return true, gameName
+    else
+        -- Game is not supported
+        notif:Notification("AXS","Game is Not\nSupported!","Code","Cartoon",10)
+        print("Unsupported Game Detected (ID: " .. currentGameId .. ")")
+        
+        -- Get game name from marketplace for logging
+        pcall(function()
+            local marketplaceService = game:GetService("MarketplaceService")
+            local gameInfo = marketplaceService:GetProductInfo(currentGameId)
+            print("Game Name: " .. (gameInfo.Name or "Unknown"))
+        end)
+        
+        return false, nil
+    end
+end
+
+-- Run game detection first
+local isGameSupported, supportedGameName = detectGame()
+
+-- If game is not supported, stop execution
+if not isGameSupported then
+    return -- Exit script completely
+end
+
+-- Continue with key system only if game is supported
+print("Proceeding with key system...")
+
+-- AXS Key System GUI with Expiration Logic and Smooth Toggle Animation
+local KEY_DURATION = 24 * 60 * 60 -- 24 hours in seconds (86400 seconds)
+local KEY_FILE = "axs_key_save.txt"
+local YOUR_WEBSITE_URL = "https://your-discord-link-here.com" -- Replace with your Discord invite or key distribution URL
+
+-- Message callback for user notifications
+onMessage = function(message)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "AXS",
+        Text = message,
+        Duration = 3
+    })
+end
+
+-- Key Management Functions
+local function saveKeyData(key)
+    local keyData = {
+        key = key,
+        timestamp = os.time(),
+        expires = os.time() + KEY_DURATION
+    }
+    local jsonData = game:GetService("HttpService"):JSONEncode(keyData)
+    writefile(KEY_FILE, jsonData)
+    
+    -- Notify user about expiration time
+    local expirationDate = os.date("%m/%d/%Y at %I:%M %p", keyData.expires)
+    onMessage("Key saved! Expires on: " .. expirationDate)
+end
+
+local function loadSavedKey()
+    if isfile(KEY_FILE) then
+        local success, keyData = pcall(function()
+            local jsonData = readfile(KEY_FILE)
+            return game:GetService("HttpService"):JSONDecode(jsonData)
+        end)
+        
+        if success and keyData then
+            local currentTime = os.time()
+            
+            -- Check if key is still valid (time-wise)
+            if currentTime < keyData.expires then
+                local timeLeft = keyData.expires - currentTime
+                local hoursLeft = math.floor(timeLeft / 3600)
+                local minutesLeft = math.floor((timeLeft % 3600) / 60)
+                
+                onMessage(string.format("Key loaded! Time left: %d hours, %d minutes", hoursLeft, minutesLeft))
+                return keyData.key
+            else
+                -- Key expired, delete file
+                delfile(KEY_FILE)
+                onMessage("Your key has expired! Please get a new key.")
+                return nil
+            end
+        end
+    end
+    return nil
+end
+
+local function getRemainingTime()
+    if isfile(KEY_FILE) then
+        local success, keyData = pcall(function()
+            local jsonData = readfile(KEY_FILE)
+            return game:GetService("HttpService"):JSONDecode(jsonData)
+        end)
+        
+        if success and keyData then
+            local currentTime = os.time()
+            if currentTime < keyData.expires then
+                local timeLeft = keyData.expires - currentTime
+                local hoursLeft = math.floor(timeLeft / 3600)
+                local minutesLeft = math.floor((timeLeft % 3600) / 60)
+                return string.format("%d hours, %d minutes", hoursLeft, minutesLeft)
+            end
+        end
+    end
+    return "No valid key"
+end
+
+local function verifyKey(key)
+    -- Add your daily key here
+    local validKey = "AXSTEAM" -- Change this key every day
+    
+    if key == validKey then
+        notif:Notification("AXS","Key is Verified","Code","Cartoon",5)
+        return true
+    else
+        notif:Notification("AXS","Key is wrong Get the Key from Discord","Code","Cartoon",5)
+        return false
+    end
+end
+
+local function copyLink()
+    -- Copy your website URL to clipboard
+    setclipboard("https://discord.gg/38M6yaJRek")
+    notif:Notification("AXS","Discord Link Copied!","Code","Cartoon",5)
+end
+
+-- Your actual script that runs after key verification
+local function runMainScript()
+    print("Access granted! AXS Hub loaded successfully!")
+    notif:Notification("AXS","Main Script Loading. Please Wait 5 -10...","Code","Cartoon",5)
+    
+    -- Load the VolleyBall Legends AXS script
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/VolleyBallLegendsAxs"))()
+end
+
+-- Create GUI (only if no valid saved key)
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local KeyBox = Instance.new("TextBox")
+local GetKeyButton = Instance.new("TextButton")
+local VerifyButton = Instance.new("TextButton")
+local StatusLabel = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+local TimeLabel = Instance.new("TextLabel")
+
+-- GUI Properties
+ScreenGui.Name = "Axs"
+ScreenGui.Parent = game.CoreGui
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.new(0.08, 0.08, 0.08)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
+MainFrame.Size = UDim2.new(0, 350, 0, 280)
+MainFrame.Active = true
+MainFrame.Draggable = false
+
+-- Add rounded corners and initial animation setup
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = MainFrame
+
+-- Start with small size for animation
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+
+-- Animate in with smoother easing
+local TweenService = game:GetService("TweenService")
+local animateIn = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 350, 0, 280)
+})
+animateIn:Play()
+
+Title.Name = "Title"
+Title.Parent = MainFrame
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "AXS"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 20
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(1, -35, 0, 10)
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.TextSize = 14
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = CloseButton
+
+KeyBox.Name = "KeyBox"
+KeyBox.Parent = MainFrame
+KeyBox.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
+KeyBox.BorderSizePixel = 0
+KeyBox.Position = UDim2.new(0.1, 0, 0.22, 0)
+KeyBox.Size = UDim2.new(0.8, 0, 0, 35)
+KeyBox.Font = Enum.Font.SourceSans
+KeyBox.PlaceholderText = "Enter the Key here!"
+KeyBox.Text = ""
+KeyBox.TextColor3 = Color3.new(1, 1, 1)
+KeyBox.TextSize = 14
+
+local keyCorner = Instance.new("UICorner")
+keyCorner.CornerRadius = UDim.new(0, 8)
+keyCorner.Parent = KeyBox
+
+GetKeyButton.Name = "GetKeyButton"
+GetKeyButton.Parent = MainFrame
+GetKeyButton.BackgroundColor3 = Color3.new(0.2, 0.4, 0.8)
+GetKeyButton.BorderSizePixel = 0
+GetKeyButton.Position = UDim2.new(0.1, 0, 0.45, 0)
+GetKeyButton.Size = UDim2.new(0.35, 0, 0, 35)
+GetKeyButton.Font = Enum.Font.SourceSansBold
+GetKeyButton.Text = "Get Key"
+GetKeyButton.TextColor3 = Color3.new(1, 1, 1)
+GetKeyButton.TextSize = 14
+
+local getCorner = Instance.new("UICorner")
+getCorner.CornerRadius = UDim.new(0, 8)
+getCorner.Parent = GetKeyButton
+
+VerifyButton.Name = "VerifyButton"
+VerifyButton.Parent = MainFrame
+VerifyButton.BackgroundColor3 = Color3.new(0.2, 0.6, 0.2)
+VerifyButton.BorderSizePixel = 0
+VerifyButton.Position = UDim2.new(0.55, 0, 0.45, 0)
+VerifyButton.Size = UDim2.new(0.35, 0, 0, 35)
+VerifyButton.Font = Enum.Font.SourceSansBold
+VerifyButton.Text = "Verify Key"
+VerifyButton.TextColor3 = Color3.new(1, 1, 1)
+VerifyButton.TextSize = 14
+
+local verifyCorner = Instance.new("UICorner")
+verifyCorner.CornerRadius = UDim.new(0, 8)
+verifyCorner.Parent = VerifyButton
+
+TimeLabel.Name = "TimeLabel"
+TimeLabel.Parent = MainFrame
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Position = UDim2.new(0, 10, 0.65, 0)
+TimeLabel.Size = UDim2.new(1, -20, 0, 25)
+TimeLabel.Font = Enum.Font.SourceSansBold
+TimeLabel.Text = ""
+TimeLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+TimeLabel.TextSize = 12
+TimeLabel.TextWrapped = true
+
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Parent = MainFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0.75, 0)
+StatusLabel.Size = UDim2.new(1, -20, 0, 50)
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.Text = "Get your key from Discord!"
+StatusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+StatusLabel.TextSize = 12
+StatusLabel.TextWrapped = true
+
+-- Button Functions
+
+local function createToggleGUI()
+    local ToggleGui = Instance.new("ScreenGui")
+    local ToggleFrame = Instance.new("Frame")
+    local ToggleLabel = Instance.new("TextLabel")
+    
+    ToggleGui.Name = "ToggleGUI"
+    ToggleGui.Parent = game.CoreGui
+    
+    ToggleFrame.Name = "ToggleFrame"
+    ToggleFrame.Parent = ToggleGui
+    ToggleFrame.BackgroundColor3 = Color3.new(0.08, 0.08, 0.08)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Position = UDim2.new(0, 20, 0.5, -20)
+    ToggleFrame.Size = UDim2.new(0, 80, 0, 40) -- Reduced toggle size
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 10)
+    toggleCorner.Parent = ToggleFrame
+
+    ToggleLabel.Name = "ToggleLabel"
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Position = UDim2.new(0, 0, 0, 0)
+    ToggleLabel.Size = UDim2.new(1, 0, 1, 0)
+    ToggleLabel.Font = Enum.Font.SourceSansBold
+    ToggleLabel.Text = "Toggle"
+    ToggleLabel.TextColor3 = Color3.new(1, 1, 1)
+    ToggleLabel.TextSize = 16
+    ToggleLabel.TextWrapped = true
+    
+    -- Start small and animate in with smoother easing
+    ToggleFrame.Size = UDim2.new(0, 0, 0, 0)
+    local animateToggleIn = TweenService:Create(ToggleFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 80, 0, 40)
+    })
+    animateToggleIn:Play()
+    
+    -- Make toggle clickable to bring back the key system
+    ToggleFrame.Selectable = true
+    ToggleFrame.Active = true
+    
+    local button = Instance.new("TextButton")
+    button.Name = "ToggleButton"
+    button.Parent = ToggleFrame
+    button.BackgroundTransparency = 1
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.Text = ""
+    
+    button.MouseButton1Click:Connect(function()
+        local animateToggleOut = TweenService:Create(ToggleFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), {
+            Size = UDim2.new(0, 0, 0, 0)
+        })
+        animateToggleOut:Play()
+        animateToggleOut.Completed:Connect(function()
+            ToggleGui:Destroy()
+            
+            -- Recreate the key system GUI with smooth transition animation
+            local NewScreenGui = Instance.new("ScreenGui")
+            local NewMainFrame = Instance.new("Frame")
+            local NewTitle = Instance.new("TextLabel")
+            local NewKeyBox = Instance.new("TextBox")
+            local NewGetKeyButton = Instance.new("TextButton")
+            local NewVerifyButton = Instance.new("TextButton")
+            local NewStatusLabel = Instance.new("TextLabel")
+            local NewCloseButton = Instance.new("TextButton")
+            local NewTimeLabel = Instance.new("TextLabel")
+            
+            NewScreenGui.Name = "Axs"
+            NewScreenGui.Parent = game.CoreGui
+            
+            NewMainFrame.Name = "MainFrame"
+            NewMainFrame.Parent = NewScreenGui
+            NewMainFrame.BackgroundColor3 = Color3.new(0.08, 0.08, 0.08)
+            NewMainFrame.BorderSizePixel = 0
+            NewMainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
+            NewMainFrame.Size = UDim2.new(0, 350, 0, 280)
+            NewMainFrame.Active = true
+            NewMainFrame.Draggable = false
+            
+            local newCorner = Instance.new("UICorner")
+            newCorner.CornerRadius = UDim.new(0, 12)
+            newCorner.Parent = NewMainFrame
+            
+            NewMainFrame.Size = UDim2.new(0, 0, 0, 0)
+            local newAnimateIn = TweenService:Create(NewMainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 350, 0, 280)
+            })
+            newAnimateIn:Play()
+            
+            NewTitle.Name = "Title"
+            NewTitle.Parent = NewMainFrame
+            NewTitle.BackgroundTransparency = 1
+            NewTitle.Position = UDim2.new(0, 0, 0, 0)
+            NewTitle.Size = UDim2.new(1, 0, 0, 50)
+            NewTitle.Font = Enum.Font.SourceSansBold
+            NewTitle.Text = "AXS"
+            NewTitle.TextColor3 = Color3.new(1, 1, 1)
+            NewTitle.TextSize = 20
+            
+            NewCloseButton.Name = "CloseButton"
+            NewCloseButton.Parent = NewMainFrame
+            NewCloseButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+            NewCloseButton.BorderSizePixel = 0
+            NewCloseButton.Position = UDim2.new(1, -35, 0, 10)
+            NewCloseButton.Size = UDim2.new(0, 25, 0, 25)
+            NewCloseButton.Font = Enum.Font.SourceSansBold
+            NewCloseButton.Text = "X"
+            NewCloseButton.TextColor3 = Color3.new(1, 1, 1)
+            NewCloseButton.TextSize = 14
+            
+            local newCloseCorner = Instance.new("UICorner")
+            newCloseCorner.CornerRadius = UDim.new(0, 6)
+            newCloseCorner.Parent = NewCloseButton
+            
+            NewKeyBox.Name = "KeyBox"
+            NewKeyBox.Parent = NewMainFrame
+            NewKeyBox.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
+            NewKeyBox.BorderSizePixel = 0
+            NewKeyBox.Position = UDim2.new(0.1, 0, 0.22, 0)
+            NewKeyBox.Size = UDim2.new(0.8, 0, 0, 35)
+            NewKeyBox.Font = Enum.Font.SourceSans
+            NewKeyBox.PlaceholderText = "Enter your Key here!"
+            NewKeyBox.Text = ""
+            NewKeyBox.TextColor3 = Color3.new(1, 1, 1)
+            NewKeyBox.TextSize = 14
+            
+            local newKeyCorner = Instance.new("UICorner")
+            newKeyCorner.CornerRadius = UDim.new(0, 8)
+            newKeyCorner.Parent = NewKeyBox
+            
+            NewGetKeyButton.Name = "GetKeyButton"
+            NewGetKeyButton.Parent = NewMainFrame
+            NewGetKeyButton.BackgroundColor3 = Color3.new(0.2, 0.4, 0.8)
+            NewGetKeyButton.BorderSizePixel = 0
+            NewGetKeyButton.Position = UDim2.new(0.1, 0, 0.45, 0)
+            NewGetKeyButton.Size = UDim2.new(0.35, 0, 0, 35)
+            NewGetKeyButton.Font = Enum.Font.SourceSansBold
+            NewGetKeyButton.Text = "Get Key"
+            NewGetKeyButton.TextColor3 = Color3.new(1, 1, 1)
+            NewGetKeyButton.TextSize = 14
+            
+            local newGetCorner = Instance.new("UICorner")
+            newGetCorner.CornerRadius = UDim.new(0, 8)
+            newGetCorner.Parent = NewGetKeyButton
+            
+            NewVerifyButton.Name = "VerifyButton"
+            NewVerifyButton.Parent = NewMainFrame
+            NewVerifyButton.BackgroundColor3 = Color3.new(0.2, 0.6, 0.2)
+            NewVerifyButton.BorderSizePixel = 0
+            NewVerifyButton.Position = UDim2.new(0.55, 0, 0.45, 0)
+            NewVerifyButton.Size = UDim2.new(0.35, 0, 0, 35)
+            NewVerifyButton.Font = Enum.Font.SourceSansBold
+            NewVerifyButton.Text = "Verify Key"
+            NewVerifyButton.TextColor3 = Color3.new(1, 1, 1)
+            NewVerifyButton.TextSize = 14
+            
+            local newVerifyCorner = Instance.new("UICorner")
+            newVerifyCorner.CornerRadius = UDim.new(0, 8)
+            newVerifyCorner.Parent = NewVerifyButton
+            
+            NewTimeLabel.Name = "TimeLabel"
+            NewTimeLabel.Parent = NewMainFrame
+            NewTimeLabel.BackgroundTransparency = 1
+            NewTimeLabel.Position = UDim2.new(0, 10, 0.65, 0)
+            NewTimeLabel.Size = UDim2.new(1, -20, 0, 25)
+            NewTimeLabel.Font = Enum.Font.SourceSansBold
+            NewTimeLabel.Text = ""
+            NewTimeLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+            NewTimeLabel.TextSize = 12
+            NewTimeLabel.TextWrapped = true
+            
+            NewStatusLabel.Name = "StatusLabel"
+            NewStatusLabel.Parent = NewMainFrame
+            NewStatusLabel.BackgroundTransparency = 1
+            NewStatusLabel.Position = UDim2.new(0, 10, 0.75, 0)
+            NewStatusLabel.Size = UDim2.new(1, -20, 0, 50)
+            NewStatusLabel.Font = Enum.Font.SourceSans
+            NewStatusLabel.Text = "Get The key from our Discord!"
+            NewStatusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+            NewStatusLabel.TextSize = 12
+            NewStatusLabel.TextWrapped = true
+            
+            NewCloseButton.MouseButton1Click:Connect(function()
+                local animateOut = TweenService:Create(NewMainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), {
+                    Size = UDim2.new(0, 0, 0, 0)
+                })
+                animateOut:Play()
+                
+                animateOut.Completed:Connect(function()
+                    NewScreenGui:Destroy()
+                    createToggleGUI()
+                end)
+            end)
+            
+            NewGetKeyButton.MouseButton1Click:Connect(function()
+                copyLink()
+                NewStatusLabel.Text = "Discord link copied! Get your key from our Discord server."
+            end)
+            
+            NewVerifyButton.MouseButton1Click:Connect(function()
+                local key = NewKeyBox.Text:gsub("%s+", "")
+                
+                if key == "" then
+                    NewStatusLabel.Text = "Please enter a key!"
+                    NewStatusLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+                    return
+                end
+                
+                NewStatusLabel.Text = "Verifying key..."
+                NewStatusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+                
+                wait(0.5)
+                
+                local success = verifyKey(key)
+                
+                if success then
+                    NewStatusLabel.Text = "Key verified successfully!"
+                    NewStatusLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+                    
+                    saveKeyData(key)
+                    
+                    wait(1)
+                    
+                    NewScreenGui:Destroy()
+                    runMainScript()
+                else
+                    NewStatusLabel.Text = "Invalid key! Please get a new key."
+                    NewStatusLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+                end
+            end)
+            
+            spawn(function()
+                while NewScreenGui.Parent do
+                    local timeLeft = getRemainingTime()
+                    if timeLeft ~= "No valid key" then
+                        NewTimeLabel.Text = "Key expires in: " .. timeLeft
+                    else
+                        NewTimeLabel.Text = ""
+                    end
+                    wait(30)
+                end
+            end)
+        end)
+    end)
+end
+
+CloseButton.MouseButton1Click:Connect(function()
+    local animateOut = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), {
+        Size = UDim2.new(0, 0, 0, 0)
+    })
+    animateOut:Play()
+    
+    animateOut.Completed:Connect(function()
+        ScreenGui:Destroy()
+        createToggleGUI()
+    end)
+end)
+
+GetKeyButton.MouseButton1Click:Connect(function()
+    copyLink()
+    StatusLabel.Text = "Discord link copied!"
+end)
+
+VerifyButton.MouseButton1Click:Connect(function()
+    local key = KeyBox.Text:gsub("%s+", "") -- Remove whitespace
+    
+    if key == "" then
+        StatusLabel.Text = "Enter the key here!"
+        StatusLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+        return
+    end
+    
+    StatusLabel.Text = "Verifying key..."
+    StatusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+    
+    wait(0.5) -- Small delay for better UX
+    
+    local success = verifyKey(key)
+    
+    if success then
+        StatusLabel.Text = "Key verified successfully!"
+        StatusLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+        
+        -- Save the key for current session
+        saveKeyData(key)
+        
+        wait(1)
+        
+        -- Hide the GUI and run your script
+        ScreenGui:Destroy()
+        runMainScript()
+    else
+        StatusLabel.Text = "Invalid key! Please get a new key."
+        StatusLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+    end
+end)
+
+spawn(function()
+    while ScreenGui.Parent do
+        local timeLeft = getRemainingTime()
+        if timeLeft ~= "No valid key" then
+            TimeLabel.Text = "Key expires in: " .. timeLeft
+        else
+            TimeLabel.Text = ""
+        end
+        wait(30)
+    end
+end)
