@@ -122,7 +122,7 @@ end
 
 local function verifyKey(key)
     -- Add your daily key here
-    local validKey = "AXSTEAM" -- Change this key every day
+    local validKey = "AXSANIGMA" -- Change this key every day
     
     if key == validKey then
         notif:Notification("AXS","Key is Verified","Code","Cartoon",5)
