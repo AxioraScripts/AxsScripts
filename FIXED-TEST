@@ -655,7 +655,7 @@ local InfiniteSprintToggle = PlayerTab:Toggle({
     end
 })
 
-local InfiniteSprintToggle = PlayerTab:Toggle({
+local AntiRagdollToggle = PlayerTab:Toggle({
     Title = "Anti Ragdol",
     Desc = "Disable FallDamage",
     Icon = "shield",
@@ -665,10 +665,11 @@ local InfiniteSprintToggle = PlayerTab:Toggle({
     for _, obj in ipairs(getgc(true)) do
         if typeof(obj) == "table" then
             for k,v in pairs(obj) do
-                if typeof(v) == "function" and debug.getinfo(v).name:lower():find("ragdoll") then
+                -- ONLY THIS LINE CHANGED - added safety check
+                if typeof(v) == "function" and debug.getinfo(v).name and debug.getinfo(v).name:lower():find("ragdoll") then
                     warn("Found ragdoll function:", v, "at key:", k)
                     hookfunction(v, function(...)
-                        print("Ragdoll function hooked!", ...)
+                        warn("Ragdoll function hooked!", ...)
                         return -- block it
                     end)
                 end
@@ -679,7 +680,7 @@ local InfiniteSprintToggle = PlayerTab:Toggle({
     -- Try to hook if it's a RemoteEvent
     for _, obj in ipairs(game:GetDescendants()) do
         if obj:IsA("RemoteEvent") and obj.Name:lower():find("ragdoll") then
-            print("Found Remote:", obj:GetFullName())
+            warn("Found Remote:", obj:GetFullName())
             local old
             old = hookmetamethod(game, "__namecall", function(self, ...)
                 if self == obj and getnamecallmethod() == "FireServer" then
@@ -705,6 +706,7 @@ local InfiniteSprintToggle = PlayerTab:Toggle({
     end
 end
 })
+
 local GodModeToggle = PlayerTab:Toggle({
     Title = "Semi GodMode",
     Desc = "does only Godmode in Fall Damage",
@@ -898,7 +900,7 @@ local AntiAfkToggle = AutoTab:Toggle({
                        task.wait(0.1)
                        VirtualInputManager:SendKeyEvent(false, randomKey, false, game)
                        
-                       print("Anti-AFK: Simulated " .. randomKey .. " key press")
+                       print("AntiAFK: Simulated " .. randomKey .. " key press")
                    end)
                    
                    if not success then
