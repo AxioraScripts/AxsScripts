@@ -223,12 +223,6 @@ local HomeTab = Window:Tab({
     Locked = false,
 })
 
-local MainSection = Window:Section({
-    Title = "Main",
-    Icon = "align-left",
-    Opened = true,
-})
-
 local PlayerTab = Window:Tab({
     Title = "PlayeMisc",
     Icon = "user",
