@@ -160,7 +160,7 @@ local function runMainScript()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/VolleyBallLegendsAxs"))()
     elseif supportedGameName == "Something evil will happen" then
     notif:Notification("AXS","Script loading Game:\nSomething evil will\nhappen","Code","Cartoon",5)
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/Sewh"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/SEWH"))()
     end
 end
 
