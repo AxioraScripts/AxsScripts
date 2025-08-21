@@ -5,7 +5,7 @@ local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insaned
 local SUPPORTED_GAMES = {
     [74691681039273] = "Volleyball Legends", -- Add more game IDs as needed
     [16991287194] = "Something evil will happen",
-    [96342491571673] = "Steal a Brainrot"
+    [109983668079237] = "Steal a Brainrot"
 }
 
 -- Game Detection Function
