@@ -4,7 +4,8 @@ local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insaned
 -- Game Detection Configuration
 local SUPPORTED_GAMES = {
     [74691681039273] = "Volleyball Legends", -- Add more game IDs as needed
-    [16991287194] = "Something evil will happen"
+    [16991287194] = "Something evil will happen",
+    [96342491571673] = "Steal a Brainrot"
 }
 
 -- Game Detection Function
@@ -42,7 +43,7 @@ if not isGameSupported then
 end
 
 -- Continue with NEOX Hub key system only if game is supported
-print("Proceeding with NEOX Hub key system...")
+print("Proceed To Axs KeySystem.")
 
 -- Services
 local Players = game:GetService("Players")
@@ -149,22 +150,22 @@ local function runMainScript()
         currentMainFrame = nil
     end
     
-    -- Hide toggle button since script is loaded
     if toggleButton then
         toggleButton.Visible = false
     end
     
-    -- Load different scripts based on the supported game
     if supportedGameName == "Volleyball Legends" then
     notif:Notification("AXS","Script loading Game:\nVolleyBall Legend.","Code","Cartoon",5)
         loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/VolleyBallLegendsAxs"))()
     elseif supportedGameName == "Something evil will happen" then
     notif:Notification("AXS","Script loading Game:\nSomething evil will\nhappen","Code","Cartoon",5)
         loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/SEWH"))()
+     elseif supportedGameName == "Steal a Brainrot" then
+     notif:Notification("AXS","Script loading Game:\nSteal a Brainrot\nby ELVIS.","Code","Cartoon",5)
+     loadstring(game:HttpGet("https://pastebin.com/raw/n0HyE8JG"))()
     end
 end
 
--- Button animations and functionality
 local function createButtonEffect(button, hoverColor, clickColor)
     local originalColor = button.BackgroundColor3
     
