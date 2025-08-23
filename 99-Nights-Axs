@@ -1,0 +1,656 @@
+-- Load notification library
+local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
+
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+-- Key configuration
+local KEY_DURATION = 24 * 60 * 60 -- 24 hours in seconds
+local KEY_FILE = "axs_key_save.txt"
+
+-- Global variables
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local currentScreenGui = nil
+local currentMainFrame = nil
+local persistentGui = nil
+local toggleButton = nil
+local originalPosition = UDim2.new(0.5, -170, 0.5, -95) -- Store original position
+
+-- Message callback for user notifications
+local function onMessage(message)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "AXS",
+        Text = message,
+        Duration = 3
+    })
+end
+
+-- Key Management Functions
+local function saveKeyData(key)
+    local keyData = {
+        key = key,
+        timestamp = os.time(),
+        expires = os.time() + KEY_DURATION,
+        gameId = game.PlaceId
+    }
+    local jsonData = HttpService:JSONEncode(keyData)
+    writefile(KEY_FILE, jsonData)
+    
+    local expirationDate = os.date("%m/%d/%Y at %I:%M %p", keyData.expires)
+    onMessage("Key saved! Expires on: " .. expirationDate)
+end
+
+local function loadSavedKey()
+    if isfile(KEY_FILE) then
+        local success, keyData = pcall(function()
+            local jsonData = readfile(KEY_FILE)
+            return HttpService:JSONDecode(jsonData)
+        end)
+        
+        if success and keyData then
+            local currentTime = os.time()
+            
+            if currentTime < keyData.expires then
+                if keyData.gameId == game.PlaceId then
+                    local timeLeft = keyData.expires - currentTime
+                    local hoursLeft = math.floor(timeLeft / 3600)
+                    local minutesLeft = math.floor((timeLeft % 3600) / 60)
+           
+                    return keyData.key
+                else
+                    notif:Notification("AXS","Key is From Different\n Game Try Again or\n In The Discord ","Code","Cartoon",3)
+                    delfile(KEY_FILE)
+                    return nil
+                end
+            else
+                delfile(KEY_FILE)
+                notif:Notification("AXS","Get The Key!\nfrom Discord","Code","Cartoon",3)
+                return nil
+            end
+        end
+    end
+    return nil
+end
+
+local function verifyKey(key)
+    local validKey = "AxsScriptsHub" -- Change this key as needed
+    
+    if key == validKey then
+        notif:Notification("AXS","Key is Verified","Code","Cartoon",3)
+        return true
+    else
+        notif:Notification("AXS","Key is wrong!\nor Updated","Code","Cartoon",3)
+        return false
+    end
+end
+
+local function copyLink()
+    setclipboard("https://discord.gg/38M6yaJRek")
+    notif:Notification("AXS","Discord Link Copied!","Code","Cartoon",3)
+end
+
+-- Your actual script that runs after key verification
+local function runMainScript()
+    print("Access granted! AXS Hub")
+    notif:Notification("AXS","Main Script Loading.\nPlease Wait 5-\n10 seconds...","Code","Cartoon",2)
+    
+    -- Destroy the key system GUI completely
+    if currentScreenGui then
+        currentScreenGui:Destroy()
+        currentScreenGui = nil
+        currentMainFrame = nil
+    end
+    
+    if toggleButton then
+        toggleButton.Visible = false
+    end
+    
+    -- Clean up persistent GUI
+    if persistentGui then
+        persistentGui:Destroy()
+        persistentGui = nil
+    end
+    
+    -- Add a small delay before loading the main script
+    spawn(function()
+        wait(1) -- Wait 1 second to allow GUI cleanup
+        
+        -- Load the main script
+        local success, error = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/99-Nights-AXS"))()
+        end)
+        
+        if success then
+            notif:Notification("AXS","99 Nights\nin forest Loaded\nSuccessfully!","Code","Cartoon",3)
+        else
+            notif:Notification("AXS","Error Loading Script:\n" .. tostring(error),"Code","Cartoon",5)
+            warn("Error loading main script:", error)
+        end
+    end)
+end
+
+local function createButtonEffect(button, hoverColor, clickColor)
+    local originalColor = button.BackgroundColor3
+    
+    button.MouseEnter:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor})
+        tween:Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = originalColor})
+        tween:Play()
+    end)
+    
+    button.MouseButton1Down:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = clickColor})
+        tween:Play()
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = hoverColor})
+        tween:Play()
+    end)
+end
+
+-- Smooth entrance animation function
+local function smoothEntranceAnimation(frame, targetPosition)
+    -- Use stored position or default position
+    local finalPosition = targetPosition or originalPosition
+    
+    -- Start position and properties
+    frame.Position = UDim2.new(0.5, -170, 1.2, 0)
+    frame.Size = UDim2.new(0, 60, 0, 40)
+    frame.BackgroundTransparency = 0.8
+    
+    -- Set all child elements transparent initially
+    local function setTransparent(parent)
+        for _, child in pairs(parent:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                child.TextTransparency = 1
+            elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                child.BackgroundTransparency = 1
+            elseif child:IsA("UIStroke") then
+                child.Transparency = 1
+            end
+        end
+    end
+    setTransparent(frame)
+    
+    -- Create smooth animations
+    local mainTween = TweenService:Create(frame, 
+        TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+        {
+            Position = finalPosition,
+            Size = UDim2.new(0, 340, 0, 190),
+            BackgroundTransparency = 0
+        }
+    )
+    
+    mainTween:Play()
+    
+    -- Fade in elements with delay
+    spawn(function()
+        wait(0.4)
+        local function fadeInElements(parent)
+            for _, child in pairs(parent:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {TextTransparency = 0}
+                    ):Play()
+                elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {BackgroundTransparency = 0}
+                    ):Play()
+                elseif child:IsA("UIStroke") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {Transparency = 0}
+                    ):Play()
+                end
+            end
+        end
+        fadeInElements(frame)
+    end)
+end
+
+-- Close/Minimize Animation Function (smooth reverse of entrance)
+local function minimizeWithAnimation()
+    if not currentMainFrame then return end
+    
+    -- Store current position before minimizing
+    originalPosition = currentMainFrame.Position
+    
+    -- Disable all interactive elements during animation
+    for _, child in pairs(currentMainFrame:GetDescendants()) do
+        if child:IsA("TextButton") or child:IsA("TextBox") then
+            child.Active = false
+        end
+    end
+    
+    -- Fade out elements first
+    local function fadeOutElements(parent)
+        for _, child in pairs(parent:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {TextTransparency = 1}
+                ):Play()
+            elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {BackgroundTransparency = 1}
+                ):Play()
+            elseif child:IsA("UIStroke") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {Transparency = 1}
+                ):Play()
+            end
+        end
+    end
+    fadeOutElements(currentMainFrame)
+    
+    -- Wait a bit then do reverse entrance animation
+    spawn(function()
+        wait(0.2)
+        
+        -- Smooth reverse animation (opposite of entrance)
+        local mainTween = TweenService:Create(currentMainFrame, 
+            TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+            {
+                Position = UDim2.new(0.5, -170, 1.2, 0),
+                Size = UDim2.new(0, 60, 0, 40),
+                BackgroundTransparency = 1
+            }
+        )
+        
+        mainTween:Play()
+        
+        -- Show toggle button after animation completes
+        mainTween.Completed:Connect(function()
+            currentScreenGui.Enabled = false
+            
+            -- Show the toggle button with slide-in animation
+            toggleButton.Visible = true
+            toggleButton.Position = UDim2.new(0, -70, 0.5, -15)
+            
+            local slideInTween = TweenService:Create(toggleButton, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                {Position = UDim2.new(0, 10, 0.5, -15)}
+            )
+            slideInTween:Play()
+        end)
+    end)
+end
+
+-- Function to show the KeySystem GUI again
+local function showKeySystemGUI()
+    if currentScreenGui then
+        currentScreenGui.Enabled = true
+        
+        -- Reset all transparency values and re-enable interactions
+        currentMainFrame.BackgroundTransparency = 0
+        
+        local function resetElements(parent)
+            for _, child in pairs(parent:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                    child.TextTransparency = 0
+                    if child:IsA("TextButton") or child:IsA("TextBox") then
+                        child.Active = true
+                    end
+                    if child:IsA("TextBox") then
+                        child.Selectable = true
+                    end
+                elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                    child.BackgroundTransparency = 0
+                elseif child:IsA("UIStroke") then
+                    child.Transparency = 0
+                end
+            end
+        end
+        resetElements(currentMainFrame)
+        
+        -- Apply smooth entrance animation to the stored position
+        smoothEntranceAnimation(currentMainFrame, originalPosition)
+    end
+end
+
+-- Function to create the main KeySystem GUI
+local function createKeySystemGUI()
+    -- Main ScreenGui
+    currentScreenGui = Instance.new("ScreenGui")
+    currentScreenGui.Name = "AxsKeySystem"
+    currentScreenGui.Parent = playerGui
+    currentScreenGui.ResetOnSpawn = false
+    currentScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    -- Main Frame
+    currentMainFrame = Instance.new("Frame")
+    currentMainFrame.Name = "MainFrame"
+    currentMainFrame.Parent = currentScreenGui
+    currentMainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    currentMainFrame.BorderSizePixel = 0
+    currentMainFrame.Position = UDim2.new(0.5, -170, 0.5, -95)
+    currentMainFrame.Size = UDim2.new(0, 340, 0, 190)
+    currentMainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    -- Add rounded corners
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = currentMainFrame
+
+    -- Header Section Frame
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Name = "HeaderFrame"
+    headerFrame.Parent = currentMainFrame
+    headerFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+    headerFrame.BorderSizePixel = 0
+    headerFrame.Position = UDim2.new(0, 0, 0, 0)
+    headerFrame.Size = UDim2.new(1, 0, 0, 50)
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 12)
+    headerCorner.Parent = headerFrame
+
+    -- Header bottom section
+    local headerBottom = Instance.new("Frame")
+    headerBottom.Name = "HeaderBottom"
+    headerBottom.Parent = headerFrame
+    headerBottom.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+    headerBottom.BorderSizePixel = 0
+    headerBottom.Position = UDim2.new(0, 0, 0.7, 0)
+    headerBottom.Size = UDim2.new(1, 0, 0.3, 0)
+
+    -- Title Label "AXS HUB"
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "TitleLabel"
+    titleLabel.Parent = headerFrame
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 20, 0, 8)
+    titleLabel.Size = UDim2.new(0.6, 0, 0, 32)
+    titleLabel.Font = Enum.Font.Cartoon
+    titleLabel.Text = "AXS HUB"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 20
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    -- Create gradient effect for title
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0.0, Color3.fromRGB(150, 180, 255)), -- Light blue at top
+        ColorSequenceKeypoint.new(1.0, Color3.fromRGB(88, 101, 242))   -- Discord blue at bottom
+    }
+    titleGradient.Rotation = 90 -- Vertical gradient
+    titleGradient.Parent = titleLabel
+
+    -- Discord Button
+    local discordButton = Instance.new("TextButton")
+    discordButton.Name = "DiscordButton"
+    discordButton.Parent = headerFrame
+    discordButton.BackgroundTransparency = 1
+    discordButton.Position = UDim2.new(1, -95, 0, 15)
+    discordButton.Size = UDim2.new(0, 65, 0, 20)
+    discordButton.Font = Enum.Font.Code
+    discordButton.Text = "Viper"
+    discordButton.TextColor3 = Color3.fromRGB(150, 255, 180)
+    discordButton.TextSize = 12
+
+    -- Minimize Button
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Name = "MinimizeButton"
+    minimizeButton.Parent = headerFrame
+    minimizeButton.BackgroundTransparency = 1
+    minimizeButton.Position = UDim2.new(1, -25, 0, 15)
+    minimizeButton.Size = UDim2.new(0, 15, 0, 15)
+    minimizeButton.Font = Enum.Font.GothamBold
+    minimizeButton.Text = "x"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.TextSize = 18
+
+    -- Separator Line
+    local separatorLine = Instance.new("Frame")
+    separatorLine.Name = "SeparatorLine"
+    separatorLine.Parent = currentMainFrame
+    separatorLine.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+    separatorLine.BorderSizePixel = 0
+    separatorLine.Position = UDim2.new(0, 0, 0, 50)
+    separatorLine.Size = UDim2.new(1, 0, 0, 1)
+
+    -- Status Message
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Parent = currentMainFrame
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Position = UDim2.new(0, 20, 0, 60)
+    statusLabel.Size = UDim2.new(1, -40, 0, 20)
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Game:Doors Get the Key From Discord!"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+    statusLabel.TextSize = 12
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Key Input Frame
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Name = "InputFrame"
+    inputFrame.Parent = currentMainFrame
+    inputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    inputFrame.BorderSizePixel = 0
+    inputFrame.Position = UDim2.new(0, 20, 0, 90)
+    inputFrame.Size = UDim2.new(1, -40, 0, 40)
+
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 10)
+    inputCorner.Parent = inputFrame
+
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color = Color3.fromRGB(45, 45, 65)
+    inputStroke.Thickness = 1
+    inputStroke.Parent = inputFrame
+
+    -- Key Input TextBox
+    local keyInput = Instance.new("TextBox")
+    keyInput.Name = "KeyInput"
+    keyInput.Parent = inputFrame
+    keyInput.BackgroundTransparency = 1
+    keyInput.Position = UDim2.new(0, 15, 0, 0)
+    keyInput.Size = UDim2.new(1, -30, 1, 0)
+    keyInput.Font = Enum.Font.Code
+    keyInput.PlaceholderText = "Enter The Key Here!"
+    keyInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+    keyInput.Text = ""
+    keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    keyInput.TextSize = 14
+    keyInput.TextXAlignment = Enum.TextXAlignment.Left
+    keyInput.ClearTextOnFocus = false
+    keyInput.TextEditable = true
+    keyInput.Active = true
+    keyInput.Selectable = true
+    keyInput.MultiLine = false
+
+    -- Get Key Button
+    local getKeyButton = Instance.new("TextButton")
+    getKeyButton.Name = "GetKeyButton"
+    getKeyButton.Parent = currentMainFrame
+    getKeyButton.BackgroundColor3 = Color3.fromRGB(108, 99, 255)
+    getKeyButton.BorderSizePixel = 0
+    getKeyButton.Position = UDim2.new(0, 20, 0, 145)
+    getKeyButton.Size = UDim2.new(0.48, -10, 0, 30)
+    getKeyButton.Font = Enum.Font.Cartoon
+    getKeyButton.Text = "Get Key"
+    getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    getKeyButton.TextSize = 14
+
+    local getKeyCorner = Instance.new("UICorner")
+    getKeyCorner.CornerRadius = UDim.new(0, 10)
+    getKeyCorner.Parent = getKeyButton
+
+    -- Verify Button
+    local verifyButton = Instance.new("TextButton")
+    verifyButton.Name = "VerifyButton"
+    verifyButton.Parent = currentMainFrame
+    verifyButton.BackgroundColor3 = Color3.fromRGB(75, 75, 90)
+    verifyButton.BorderSizePixel = 0
+    verifyButton.Position = UDim2.new(0.52, 10, 0, 145)
+    verifyButton.Size = UDim2.new(0.48, -30, 0, 30)
+    verifyButton.Font = Enum.Font.Cartoon
+    verifyButton.Text = "Verify Key"
+    verifyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    verifyButton.TextSize = 14
+
+    local verifyCorner = Instance.new("UICorner")
+    verifyCorner.CornerRadius = UDim.new(0, 10)
+    verifyCorner.Parent = verifyButton
+
+    -- Apply button effects
+    createButtonEffect(getKeyButton, Color3.fromRGB(118, 109, 255), Color3.fromRGB(98, 89, 235))
+    createButtonEffect(verifyButton, Color3.fromRGB(85, 85, 100), Color3.fromRGB(65, 65, 80))
+
+    -- Button functionality
+    minimizeButton.MouseButton1Click:Connect(function()
+        minimizeWithAnimation()
+    end)
+
+    discordButton.MouseButton1Click:Connect(function()
+        copyLink()
+    end)
+
+    getKeyButton.MouseButton1Click:Connect(function()
+        copyLink()
+        statusLabel.Text = "Discord link copied! Get your key from the server."
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end)
+
+    verifyButton.MouseButton1Click:Connect(function()
+        local enteredKey = keyInput.Text
+        
+        if enteredKey == "" then
+            statusLabel.Text = "Please enter a key first."
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            return
+        end
+        
+        if verifyKey(enteredKey) then
+            saveKeyData(enteredKey)
+            statusLabel.Text = "Key verified successfully! Loading..."
+            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            
+            wait(1)
+            runMainScript()
+        else
+            statusLabel.Text = "Invalid key! Please get the correct key from Discord."
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            keyInput.Text = ""
+        end
+    end)
+
+    -- Enter key functionality
+    keyInput.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            verifyButton.MouseButton1Click:Fire()
+        end
+    end)
+
+    -- Drag functionality
+    local dragToggle = nil
+    local dragSpeed = 0.25
+    local dragStart = nil
+    local startPos = nil
+
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        game:GetService('TweenService'):Create(currentMainFrame, TweenInfo.new(dragSpeed), {Position = position}):Play()
+    end
+
+    currentMainFrame.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = currentMainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragToggle = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragToggle then
+                updateInput(input)
+            end
+        end
+    end)
+
+    -- Apply smooth entrance animation with original position
+    smoothEntranceAnimation(currentMainFrame, originalPosition)
+end
+
+-- Initialize persistent GUI and toggle button
+local function initializePersistentGUI()
+    -- Create persistent ScreenGui for toggle
+    persistentGui = Instance.new("ScreenGui")
+    persistentGui.Name = "NEOXToggleSystem"
+    persistentGui.Parent = playerGui
+    persistentGui.ResetOnSpawn = false
+    persistentGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    -- Toggle Button (initially hidden)
+    toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Parent = persistentGui
+    toggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Position = UDim2.new(0, 10, 0.5, -15)
+    toggleButton.Size = UDim2.new(0, 60, 0, 30)
+    toggleButton.Font = Enum.Font.Code
+    toggleButton.Text = "Toggle"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 12
+    toggleButton.Visible = false
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.Parent = toggleButton
+
+    -- Apply toggle button effect
+    createButtonEffect(toggleButton, Color3.fromRGB(30, 30, 45), Color3.fromRGB(15, 15, 25))
+
+    -- Toggle button functionality
+    toggleButton.MouseButton1Click:Connect(function()
+        -- Hide toggle button with slide-out animation
+        local slideOutTween = TweenService:Create(toggleButton, 
+            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+            {Position = UDim2.new(0, -70, 0.5, -15)}
+        )
+        
+        slideOutTween:Play()
+        
+        slideOutTween.Completed:Connect(function()
+            toggleButton.Visible = false
+            -- Show the existing KeySystem GUI with smooth animation
+            showKeySystemGUI()
+        end)
+    end)
+end
+
+-- Main execution
+-- Check for saved key first
+local savedKey = loadSavedKey()
+if savedKey and verifyKey(savedKey) then
+    runMainScript()
+    return
+end
+
+-- Initialize persistent GUI and create the KeySystem GUI
+initializePersistentGUI()
+createKeySystemGUI()
