@@ -4,8 +4,7 @@ local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insaned
 -- Game Detection Configuration
 local SUPPORTED_GAMES = {
     [74691681039273] = "Volleyball Legends", -- Add more game IDs as needed
-    [16991287194] = "Something evil will happen",
-    [109983668079237] = "Steal a Brainrot"
+    [16991287194] = "Something evil will happen"
 }
 
 -- Game Detection Function
@@ -122,7 +121,7 @@ local function loadSavedKey()
 end
 
 local function verifyKey(key)
-    local validKey = "VIPERSICKYESTERDAY" -- Change this key as needed
+    local validKey = "AXSBYZYNOXIS" -- Change this key as needed
     
     if key == validKey then
         notif:Notification("AXS","Key is Verified","Code","Cartoon",3)
@@ -162,7 +161,6 @@ local function runMainScript()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/SEWH"))()
      elseif supportedGameName == "Steal a Brainrot" then
      notif:Notification("AXS","Script loading Game:\nSteal a Brainrot\nby ELVIS.","Code","Cartoon",5)
-     loadstring(game:HttpGet("https://pastebin.com/raw/n0HyE8JG"))()
     end
 end
 
