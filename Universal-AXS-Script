@@ -121,7 +121,7 @@ local function loadSavedKey()
 end
 
 local function verifyKey(key)
-    local validKey = "AXSSIGMA" -- Change this key as needed
+    local validKey = "GagSoon" -- Change this key as needed
     
     if key == validKey then
         notif:Notification("AXS","Key is Verified","Code","Cartoon",3)
