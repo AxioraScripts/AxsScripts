@@ -112,7 +112,7 @@ local function loadSavedKey()
 end
 
 local function verifyKey(key)
-    local validKey = "Test" 
+    local validKey = "AXSHUBUPDATEW" 
     
     if key == validKey then
         notif:Notification("AXS","Key is Verified","Code","Cartoon",3)
