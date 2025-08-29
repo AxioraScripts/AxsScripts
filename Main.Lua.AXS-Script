@@ -1,0 +1,726 @@
+local function safeLoadString(url, scriptName)
+    local success, result = pcall(function()
+        return game:HttpGet(url)
+    end)
+    
+    if success and result then
+        local loadSuccess, loadResult = pcall(function()
+            return loadstring(result)()
+        end)
+        
+        if loadSuccess then
+            notif:Notification("AXS", scriptName .. "\nLoaded Successfully!", "Code", "Cartoon", 3)
+            return true
+        else
+            notif:Notification("AXS", "Failed to Load " .. scriptName .. "\nScript Error!", "Code", "Cartoon", 5)
+            warn("Script loading error for " .. scriptName .. ": " .. tostring(loadResult))
+            return false
+        end
+        else
+        notif:Notification("AXS", "Failed to Download " .. scriptName .. "\nNetwork Error!", "Code", "Cartoon", 5)
+        warn("Network error for " .. scriptName .. ": " .. tostring(result))
+        return false
+end
+end
+
+local notif
+local success, result = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
+end)
+
+if success then
+    notif = result
+else
+    warn("Failed to load notification library: " .. tostring(result))
+    notif = {
+        Notification = function(title, text, icon, style, duration)
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = title,
+                Text = text,
+                Duration = duration or 5
+            })
+        end
+    }
+end
+
+local SUPPORTED_GAMES = {
+    [74691681039273] = "Volleyball Legends",
+    [16991287194] = "Something evil will happen",
+    [86076978383613] = "Hunty Zombie",
+    [6839171747] = "Doors",
+    [6516141723] = "Doors",
+    [126509999114328] = "99 Nights in the forest",
+    [79546208627805] = "99 Nights in the forest"
+}
+
+local function detectGame()
+    local currentGameId = game.PlaceId
+    local gameName = SUPPORTED_GAMES[currentGameId]
+    
+    if gameName then
+        notif:Notification("AXS","Game is Supported\nLoading Script","Code","Cartoon",5)
+        print("Supported Game Detected: " .. gameName .. " (ID: " .. currentGameId .. ")")
+        return true, gameName
+    else
+        notif:Notification("AXS","Game is Not\nSupported!","Code","Cartoon",5)
+        warn("Unsupported Game Detected (ID: " .. currentGameId .. ")")
+        task.wait(0.5)
+        game.Players.LocalPlayer:kick("Game Not Supported (Join Main Game)")
+        
+        pcall(function()
+            local marketplaceService = game:GetService("MarketplaceService")
+            local gameInfo = marketplaceService:GetProductInfo(currentGameId)
+            print("Game Name: " .. (gameInfo.Name or "Unknown"))
+        end)
+        
+        return false, nil
+    end
+end
+
+local isGameSupported, supportedGameName = detectGame()
+
+if not isGameSupported then
+    return
+end
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local KEY_DURATION = 24 * 60 * 60
+local KEY_FILE = "axs_key_save.txt"
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local currentScreenGui = nil
+local currentMainFrame = nil
+local persistentGui = nil
+local toggleButton = nil
+local originalPosition = UDim2.new(0.5, -170, 0.5, -95)
+
+local function onMessage(message)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "AXS",
+            Text = message,
+            Duration = 3
+        })
+    end)
+end
+
+local function saveKeyData(key)
+    local success, error = pcall(function()
+        local keyData = {
+            key = key,
+            timestamp = os.time(),
+            expires = os.time() + KEY_DURATION,
+            gameId = game.PlaceId
+        }
+        local jsonData = HttpService:JSONEncode(keyData)
+        writefile(KEY_FILE, jsonData)
+        
+        local expirationDate = os.date("%m/%d/%Y at %I:%M %p", keyData.expires)
+        onMessage("Key saved! Expires on: " .. expirationDate)
+    end)
+    
+    if not success then
+        warn("Failed to save key data: " .. tostring(error))
+        notif:Notification("AXS", "Failed to Save Key!\nTry Again", "Code", "Cartoon", 3)
+    end
+end
+
+local function loadSavedKey()
+    local success, result = pcall(function()
+        if isfile(KEY_FILE) then
+            local jsonData = readfile(KEY_FILE)
+            local keyData = HttpService:JSONDecode(jsonData)
+            
+            local currentTime = os.time()
+            
+            if currentTime < keyData.expires then
+                if keyData.gameId == game.PlaceId then
+                    local timeLeft = keyData.expires - currentTime
+                    local hoursLeft = math.floor(timeLeft / 3600)
+                    local minutesLeft = math.floor((timeLeft % 3600) / 60)
+                    
+                    notif:Notification("AXS", string.format("Key loaded! Time left: %d hours, %d minutes", hoursLeft, minutesLeft), "Code", "Cartoon", 3)
+                    return keyData.key
+                else
+                    notif:Notification("AXS","Key is From Different\n Game Try Again or\n In The Discord ","Code","Cartoon",3)
+                    delfile(KEY_FILE)
+                    return nil
+                end
+            else
+                delfile(KEY_FILE)
+                notif:Notification("AXS","Get The Key!\nfrom Discord","Code","Cartoon",3)
+                return nil
+            end
+        end
+        return nil
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load saved key: " .. tostring(result))
+        return nil
+    end
+end
+
+local function verifyKey(key)
+    local validKey = "YoWHellCat" 
+    
+    if key == validKey then
+        notif:Notification("AXS","Key is Verified","Code","Cartoon",3)
+        return true
+    else
+        notif:Notification("AXS","Key is wrong!\nGet the Key from Discord","Code","Cartoon",3)
+        return false
+    end
+end
+
+local function copyLink()
+    local success, error = pcall(function()
+        setclipboard("https://discord.gg/38M6yaJRek")
+        notif:Notification("AXS","Discord Link Copied!","Code","Cartoon",3)
+    end)
+    
+    if not success then
+        warn("Failed to copy link: " .. tostring(error))
+        notif:Notification("AXS","Failed to Copy Link!\nManually join Discord","Code","Cartoon",5)
+    end
+end
+
+local function runMainScript()
+    notif:Notification("AXS","Main Script Loading.\nPlease Wait 5-\n10 seconds...","Code","Cartoon",2)
+    
+    if currentScreenGui then
+        currentScreenGui:Destroy()
+        currentScreenGui = nil
+        currentMainFrame = nil
+    end
+    
+    if toggleButton then
+        toggleButton.Visible = false
+    end
+    
+    local scriptLoaded = false
+    
+    if supportedGameName == "Volleyball Legends" then
+        notif:Notification("AXS","Script loading Game:\nVolleyBall Legend.","Code","Cartoon",5)
+        scriptLoaded = safeLoadString("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/VolleyBallLegendsAxs", "Volleyball Legends")
+        
+    elseif supportedGameName == "Something evil will happen" then
+        notif:Notification("AXS","Script loading Game:\nSomething evil will\nhappen","Code","Cartoon",5)
+        scriptLoaded = safeLoadString("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/SEWH", "Something Evil Will Happen")
+        
+    elseif supportedGameName == "Hunty Zombie" then
+        notif:Notification("AXS","Script loading Game:\nHunty Zombie","Code","Cartoon",5)
+        scriptLoaded = safeLoadString("https://raw.githubusercontent.com/AxioraScripts/Axs-Scri0t/refs/heads/main/Hunty-Zombie-Axs", "Hunty Zombie")
+        
+    elseif supportedGameName == "Doors" then
+        notif:Notification("AXS","Script loading Game:\nDoors","Code","Cartoon",5)
+        scriptLoaded = safeLoadString("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/Door-Axs", "Doors")
+        
+    elseif supportedGameName == "99 Nights in the forest" then
+        notif:Notification("AXS","Script loading Game:\n99 Nights in forest","Code","Cartoon",5)
+        scriptLoaded = safeLoadString("https://raw.githubusercontent.com/AxioraScripts/AxsScripts/refs/heads/main/99-Nights-AXS", "99 Nights in the Forest")
+    end
+    
+    if not scriptLoaded then
+        task.wait(2)
+        notif:Notification("AXS","Script Failed to Load!\nTry Again Later","Code","Cartoon",5)
+        initializePersistentGUI()
+        createKeySystemGUI()
+    end
+end
+
+local function createButtonEffect(button, hoverColor, clickColor)
+    local originalColor = button.BackgroundColor3
+    
+    button.MouseEnter:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor})
+        tween:Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = originalColor})
+        tween:Play()
+    end)
+    
+    button.MouseButton1Down:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = clickColor})
+        tween:Play()
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = hoverColor})
+        tween:Play()
+    end)
+end
+
+local function smoothEntranceAnimation(frame, targetPosition)
+    local finalPosition = targetPosition or originalPosition
+    
+    frame.Position = UDim2.new(0.5, -170, 1.2, 0)
+    frame.Size = UDim2.new(0, 60, 0, 40)
+    frame.BackgroundTransparency = 0.8
+    
+    local function setTransparent(parent)
+        for _, child in pairs(parent:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                child.TextTransparency = 1
+            elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                child.BackgroundTransparency = 1
+            elseif child:IsA("UIStroke") then
+                child.Transparency = 1
+            end
+        end
+    end
+    setTransparent(frame)
+    
+    local mainTween = TweenService:Create(frame, 
+        TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+        {
+            Position = finalPosition,
+            Size = UDim2.new(0, 340, 0, 190),
+            BackgroundTransparency = 0
+        }
+    )
+    
+    mainTween:Play()
+    
+    spawn(function()
+        wait(0.4)
+        local function fadeInElements(parent)
+            for _, child in pairs(parent:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {TextTransparency = 0}
+                    ):Play()
+                elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {BackgroundTransparency = 0}
+                    ):Play()
+                elseif child:IsA("UIStroke") then
+                    TweenService:Create(child, 
+                        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                        {Transparency = 0}
+                    ):Play()
+                end
+            end
+        end
+        fadeInElements(frame)
+    end)
+end
+
+local function minimizeWithAnimation()
+    if not currentMainFrame then return end
+    
+    originalPosition = currentMainFrame.Position
+    
+    for _, child in pairs(currentMainFrame:GetDescendants()) do
+        if child:IsA("TextButton") or child:IsA("TextBox") then
+            child.Active = false
+        end
+    end
+    
+    local function fadeOutElements(parent)
+        for _, child in pairs(parent:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {TextTransparency = 1}
+                ):Play()
+            elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {BackgroundTransparency = 1}
+                ):Play()
+            elseif child:IsA("UIStroke") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+                    {Transparency = 1}
+                ):Play()
+            end
+        end
+    end
+    fadeOutElements(currentMainFrame)
+    
+    spawn(function()
+        wait(0.2)
+        
+        local mainTween = TweenService:Create(currentMainFrame, 
+            TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+            {
+                Position = UDim2.new(0.5, -170, 1.2, 0),
+                Size = UDim2.new(0, 60, 0, 40),
+                BackgroundTransparency = 1
+            }
+        )
+        
+        mainTween:Play()
+        
+        mainTween.Completed:Connect(function()
+            currentScreenGui.Enabled = false
+            
+            toggleButton.Visible = true
+            toggleButton.Position = UDim2.new(0, -70, 0.5, -15)
+            
+            local slideInTween = TweenService:Create(toggleButton, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+                {Position = UDim2.new(0, 10, 0.5, -15)}
+            )
+            slideInTween:Play()
+        end)
+    end)
+end
+
+local function showKeySystemGUI()
+    if currentScreenGui then
+        currentScreenGui.Enabled = true
+        
+        currentMainFrame.BackgroundTransparency = 0
+        
+        local function resetElements(parent)
+            for _, child in pairs(parent:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                    child.TextTransparency = 0
+                    if child:IsA("TextButton") or child:IsA("TextBox") then
+                        child.Active = true
+                    end
+                    if child:IsA("TextBox") then
+                        child.Selectable = true
+                    end
+                elseif child:IsA("Frame") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
+                    child.BackgroundTransparency = 0
+                elseif child:IsA("UIStroke") then
+                    child.Transparency = 0
+                end
+            end
+        end
+        resetElements(currentMainFrame)
+        
+        smoothEntranceAnimation(currentMainFrame, originalPosition)
+    end
+end
+
+local function createKeySystemGUI()
+    currentScreenGui = Instance.new("ScreenGui")
+    currentScreenGui.Name = "AxsKeySystem"
+    currentScreenGui.Parent = playerGui
+    currentScreenGui.ResetOnSpawn = false
+    currentScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    currentMainFrame = Instance.new("Frame")
+    currentMainFrame.Name = "MainFrame"
+    currentMainFrame.Parent = currentScreenGui
+    currentMainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    currentMainFrame.BorderSizePixel = 0
+    currentMainFrame.Position = UDim2.new(0.5, -170, 0.5, -95)
+    currentMainFrame.Size = UDim2.new(0, 340, 0, 190)
+    currentMainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = currentMainFrame
+
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Name = "HeaderFrame"
+    headerFrame.Parent = currentMainFrame
+    headerFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+    headerFrame.BorderSizePixel = 0
+    headerFrame.Position = UDim2.new(0, 0, 0, 0)
+    headerFrame.Size = UDim2.new(1, 0, 0, 50)
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 12)
+    headerCorner.Parent = headerFrame
+
+    local headerBottom = Instance.new("Frame")
+    headerBottom.Name = "HeaderBottom"
+    headerBottom.Parent = headerFrame
+    headerBottom.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+    headerBottom.BorderSizePixel = 0
+    headerBottom.Position = UDim2.new(0, 0, 0.7, 0)
+    headerBottom.Size = UDim2.new(1, 0, 0.3, 0)
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "TitleLabel"
+    titleLabel.Parent = headerFrame
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 20, 0, 8)
+    titleLabel.Size = UDim2.new(0.6, 0, 0, 32)
+    titleLabel.Font = Enum.Font.Cartoon
+    titleLabel.Text = "AXS HUB"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 20
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0.0, Color3.fromRGB(150, 180, 255)),
+        ColorSequenceKeypoint.new(1.0, Color3.fromRGB(88, 101, 242))
+    }
+    titleGradient.Rotation = 90
+    titleGradient.Parent = titleLabel
+
+    local discordButton = Instance.new("TextButton")
+    discordButton.Name = "DiscordButton"
+    discordButton.Parent = headerFrame
+    discordButton.BackgroundTransparency = 1
+    discordButton.Position = UDim2.new(1, -95, 0, 15)
+    discordButton.Size = UDim2.new(0, 65, 0, 20)
+    discordButton.Font = Enum.Font.Code
+    discordButton.Text = "Viper"
+    discordButton.TextColor3 = Color3.fromRGB(150, 255, 180)
+    discordButton.TextSize = 12
+
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Name = "MinimizeButton"
+    minimizeButton.Parent = headerFrame
+    minimizeButton.BackgroundTransparency = 1
+    minimizeButton.Position = UDim2.new(1, -25, 0, 15)
+    minimizeButton.Size = UDim2.new(0, 15, 0, 15)
+    minimizeButton.Font = Enum.Font.GothamBold
+    minimizeButton.Text = "x"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.TextSize = 18
+
+    local separatorLine = Instance.new("Frame")
+    separatorLine.Name = "SeparatorLine"
+    separatorLine.Parent = currentMainFrame
+    separatorLine.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+    separatorLine.BorderSizePixel = 0
+    separatorLine.Position = UDim2.new(0, 0, 0, 50)
+    separatorLine.Size = UDim2.new(1, 0, 0, 1)
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Parent = currentMainFrame
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Position = UDim2.new(0, 20, 0, 60)
+    statusLabel.Size = UDim2.new(1, -40, 0, 20)
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Game: " .. (supportedGameName or "Unknown") .. " Get the Key From Discord!"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+    statusLabel.TextSize = 12
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Name = "InputFrame"
+    inputFrame.Parent = currentMainFrame
+    inputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    inputFrame.BorderSizePixel = 0
+    inputFrame.Position = UDim2.new(0, 20, 0, 90)
+    inputFrame.Size = UDim2.new(1, -40, 0, 40)
+
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 10)
+    inputCorner.Parent = inputFrame
+
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color = Color3.fromRGB(45, 45, 65)
+    inputStroke.Thickness = 1
+    inputStroke.Parent = inputFrame
+
+    local keyInput = Instance.new("TextBox")
+    keyInput.Name = "KeyInput"
+    keyInput.Parent = inputFrame
+    keyInput.BackgroundTransparency = 1
+    keyInput.Position = UDim2.new(0, 15, 0, 0)
+    keyInput.Size = UDim2.new(1, -30, 1, 0)
+    keyInput.Font = Enum.Font.Code
+    keyInput.PlaceholderText = "Enter The Key Here!"
+    keyInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+    keyInput.Text = ""
+    keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    keyInput.TextSize = 14
+    keyInput.TextXAlignment = Enum.TextXAlignment.Left
+    keyInput.ClearTextOnFocus = false
+    keyInput.TextEditable = true
+    keyInput.Active = true
+    keyInput.Selectable = true
+    keyInput.MultiLine = false
+
+    local getKeyButton = Instance.new("TextButton")
+    getKeyButton.Name = "GetKeyButton"
+    getKeyButton.Parent = currentMainFrame
+    getKeyButton.BackgroundColor3 = Color3.fromRGB(108, 99, 255)
+    getKeyButton.BorderSizePixel = 0
+    getKeyButton.Position = UDim2.new(0, 20, 0, 145)
+    getKeyButton.Size = UDim2.new(0.48, -10, 0, 30)
+    getKeyButton.Font = Enum.Font.Cartoon
+    getKeyButton.Text = "Get Key"
+    getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    getKeyButton.TextSize = 14
+
+    local getKeyCorner = Instance.new("UICorner")
+    getKeyCorner.CornerRadius = UDim.new(0, 10)
+    getKeyCorner.Parent = getKeyButton
+
+    local verifyButton = Instance.new("TextButton")
+    verifyButton.Name = "VerifyButton"
+    verifyButton.Parent = currentMainFrame
+    verifyButton.BackgroundColor3 = Color3.fromRGB(75, 75, 90)
+    verifyButton.BorderSizePixel = 0
+    verifyButton.Position = UDim2.new(0.52, 10, 0, 145)
+    verifyButton.Size = UDim2.new(0.48, -30, 0, 30)
+    verifyButton.Font = Enum.Font.Cartoon
+    verifyButton.Text = "Verify Key"
+    verifyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    verifyButton.TextSize = 14
+
+    local verifyCorner = Instance.new("UICorner")
+    verifyCorner.CornerRadius = UDim.new(0, 10)
+    verifyCorner.Parent = verifyButton
+
+    createButtonEffect(getKeyButton, Color3.fromRGB(118, 109, 255), Color3.fromRGB(98, 89, 235))
+    createButtonEffect(verifyButton, Color3.fromRGB(85, 85, 100), Color3.fromRGB(65, 65, 80))
+
+    minimizeButton.MouseButton1Click:Connect(function()
+        minimizeWithAnimation()
+    end)
+
+    discordButton.MouseButton1Click:Connect(function()
+        copyLink()
+    end)
+
+    getKeyButton.MouseButton1Click:Connect(function()
+        copyLink()
+        statusLabel.Text = "Discord link copied! Get your key from the server."
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end)
+
+    verifyButton.MouseButton1Click:Connect(function()
+        local enteredKey = keyInput.Text
+        
+        if enteredKey == "" then
+            statusLabel.Text = "Please enter a key first."
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            return
+        end
+        
+        if verifyKey(enteredKey) then
+            saveKeyData(enteredKey)
+            statusLabel.Text = "Key verified successfully! Loading..."
+            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            
+            wait(1)
+            runMainScript()
+        else
+            statusLabel.Text = "Invalid key! Please get the correct key from Discord."
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            keyInput.Text = ""
+        end
+    end)
+
+    keyInput.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            verifyButton.MouseButton1Click:Fire()
+        end
+    end)
+
+    local dragToggle = nil
+    local dragSpeed = 0.25
+    local dragStart = nil
+    local startPos = nil
+
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        game:GetService('TweenService'):Create(currentMainFrame, TweenInfo.new(dragSpeed), {Position = position}):Play()
+    end
+
+    currentMainFrame.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = currentMainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragToggle = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragToggle then
+                updateInput(input)
+            end
+        end
+    end)
+
+    smoothEntranceAnimation(currentMainFrame, originalPosition)
+end
+
+local function initializePersistentGUI()
+    persistentGui = Instance.new("ScreenGui")
+    persistentGui.Name = "NEOXToggleSystem"
+    persistentGui.Parent = playerGui
+    persistentGui.ResetOnSpawn = false
+    persistentGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Parent = persistentGui
+    toggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Position = UDim2.new(0, 10, 0.5, -15)
+    toggleButton.Size = UDim2.new(0, 60, 0, 30)
+    toggleButton.Font = Enum.Font.Code
+    toggleButton.Text = "Toggle"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 12
+    toggleButton.Visible = false
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.Parent = toggleButton
+
+    createButtonEffect(toggleButton, Color3.fromRGB(30, 30, 45), Color3.fromRGB(15, 15, 25))
+
+    toggleButton.MouseButton1Click:Connect(function()
+        local slideOutTween = TweenService:Create(toggleButton, 
+            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+            {Position = UDim2.new(0, -70, 0.5, -15)}
+        )
+        
+        slideOutTween:Play()
+        
+        slideOutTween.Completed:Connect(function()
+            toggleButton.Visible = false
+            showKeySystemGUI()
+        end)
+    end)
+end
+
+local function safeInitialization()
+    local success, error = pcall(function()
+        local savedKey = loadSavedKey()
+        if savedKey and verifyKey(savedKey) then
+            runMainScript()
+            return
+        end
+        
+        initializePersistentGUI()
+        createKeySystemGUI()
+    end)
+    
+    if not success then
+        warn("Initialization failed: " .. tostring(error))
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "AXS Error",
+            Text = "Script initialization failed!",
+            Duration = 5
+        })
+    end
+end
+
+safeInitialization()
